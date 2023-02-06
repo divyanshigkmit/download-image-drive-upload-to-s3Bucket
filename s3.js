@@ -1,6 +1,7 @@
 require("dotenv").config();
 const fs = require("fs");
 const S3 = require("aws-sdk/clients/s3");
+var zlib = require("zlib");
 
 const region = process.env.AWS_BUCKET_REGION;
 const accessKeyId = process.env.AWS_ACCESS_KEY;
@@ -13,20 +14,57 @@ const s3 = new S3({
   secretAccessKey,
 });
 
-const uploadImage = async (filePath, fileId) => {
-  const fileStream = fs.readFileSync(filePath);
+const uploadImage = async (filePath) => {
+  fs.readFile(filePath, async (err, data) => {
+    const body = data;
+    if (err) {
+      console.log(err);
+      throw err;
+    } else {
+      const uploadParams = {
+        Bucket: bucket,
+        ACL: "public-read",
+        Body: body,
+        Key: filePath,
+      };
+      const data = await s3.upload(uploadParams).promise();
+      console.log(data);
+      return;
+    }
+  });
+  // const fileStream = await fs.readFileSync(filePath);
+  // console.log(fileStream);
+  // const uploadParams = {
+  //   Bucket: bucket,
+  //   ACL: "public-read",
+  //   Body: fileStream,
+  //   Key: filePath,
+  //   ContentType: "image/png",
+  //   ContentEncoding: "gzip",
+  // };
 
-  const uploadParams = {
-    Bucket: bucket,
-    ACL: "public-read",
-    Body: fileStream,
-    Key: filePath,
-    ContentType: "image/png",
-  };
-  // console.log(filePath);
-  await s3.upload(uploadParams).promise();
-  return;
+  // const data = await s3.upload(uploadParams).promise();
+  // console.log(data);
+  // return;
 };
+
+// const uploadImage = (filePath) => {
+//   fs.readFile(filePath, (err, data) => {
+//     console.log(data);
+//     if (err) throw err;
+//     const params = {
+//       Bucket: bucket,
+//       ACL: "public-read",
+//       Body: data,
+//       Key: filePath,
+//       ContentType: "image/png",
+//     };
+//     s3.upload(params, function (s3Err, data) {
+//       if (s3Err) throw s3Err;
+//       console.log(`File uploaded successfully at ${data.Location}`);
+//     });
+//   });
+// };
 
 module.exports = {
   uploadImage,

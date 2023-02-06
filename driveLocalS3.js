@@ -1,14 +1,14 @@
 const fs = require("fs");
 const readline = require("readline");
 const { google } = require("googleapis");
-const drive = google.drive("v2");
+// const drive = google.drive("v2");
 
 const s3 = require("./s3");
 
 // If modifying these scopes, delete token.json.
 const SCOPES = [
-  "https://www.googleapis.com/auth/drive.file",
   "https://www.googleapis.com/auth/drive.readonly",
+  "https://www.googleapis.com/auth/drive.metadata.readonly",
 ];
 const TOKEN_PATH = "token.json";
 
@@ -66,21 +66,28 @@ function getAccessToken(oAuth2Client, callback) {
 /**
  * Describe with given media and metaData and upload it using google.drive.create method()
  */
+
 async function downloadFile(client) {
-  const files = await drive.children.list({
+  const drive = google.drive({ version: "v3", auth: client });
+  // console.log(drive.files);
+  const files = await drive.files.list({
     auth: client,
     folderId: "1NKT-rqUC91gLA72Dkc4G8eUU38EUMKNr",
-    q: "mimeType contains 'image' and trashed = false",
+    q: "mimeType contains 'image/png' and trashed = false",
   });
-
-  files.data.items.forEach(async (file) => {
-    const dest = fs.createWriteStream("upload/" + file.id + ".png");
+  console.log(files.data.files);
+  files.data.files.forEach(async (file) => {
+    // console.log(file);
+    const dest = fs.createWriteStream("upload/" + file.name);
     const res = await drive.files.get(
       { auth: client, fileId: file.id, alt: "media" },
       { responseType: "stream" }
     );
-    await res.data.pipe(dest);
-    await s3.uploadImage(dest.path, file.id);
+    // console.log("response>>>>>", res);
+    // await res.data.pipe(dest);
+    await res.data.pipe(dest).on("finish", () => {
+      s3.uploadImage(dest.path);
+    });
   });
 }
 
